@@ -1,0 +1,17 @@
+INTERESTING QUESTIONS ABOUT THE DATA IN IMDB
+
+    CRITICS
+        1 It is normal to have coincidences in professional and user critics?
+
+        2 Wich genres/actors/directors tend to have most votes or better critics among the users and professionals
+
+    REVENUE
+
+        3 Wich year was the most/worst profitable for the industry
+
+        4 Wich genres/actors/directors tend to have most/worst revenues
+
+    ACTORS/DIRECTORS
+        5 Wich combination of actors and directors is more frequent
+
+        6 Wich actors/directors speciallizes in each genre
