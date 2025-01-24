@@ -1,0 +1,8 @@
+# -----------------------------------------------------------------------
+#           Dependencies needed to run the app
+# -----------------------------------------------------------------------
+
+snowflake-connector-python[pandas]
+streamlit
+pandas
+plotly 

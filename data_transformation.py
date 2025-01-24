@@ -1,3 +1,11 @@
+# ///////////////////////////////////////////////////////////////////////
+#
+#                           DATA TRANFORMATION
+#   This script is executed apart from the app, and it is used to transform
+#   the original dataset (datasets\imdb_dataset.csv) to create the rest of
+#   .csv files.
+# ///////////////////////////////////////////////////////////////////////
+
 import pandas as pd
 import re
 

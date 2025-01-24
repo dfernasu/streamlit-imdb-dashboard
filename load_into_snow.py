@@ -1,3 +1,11 @@
+# ///////////////////////////////////////////////////////////////////////
+#
+#                           LOAD INTO SNOW
+#   This script is executed apart from the app, and it is used to upload
+#   the .csv files in the datasets folder into the Snowflake database.
+#
+# ///////////////////////////////////////////////////////////////////////
+
 from utilities_snow_connections import *
 from snowflake.connector.errors import Error
 from snowflake.connector import SnowflakeConnection
