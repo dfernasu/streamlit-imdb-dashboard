@@ -170,3 +170,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 .vscode/tasks.json
+
+# Database parameters
+database.ini

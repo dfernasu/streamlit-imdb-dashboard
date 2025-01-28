@@ -1,5 +1,5 @@
 import streamlit as st
-from utilities_snow_connections import validate_credentials
+from utilities_db_connections import validate_credentials
 from utilities_navigation import set_credentials, show_info_toast, move_to_dashboard
 
 # -----------------------------------------------------------------------

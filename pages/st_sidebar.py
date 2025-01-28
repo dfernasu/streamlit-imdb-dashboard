@@ -1,5 +1,5 @@
-from utilities_snow_connections import create_connection, close_connection
-from utilities_snow_data import get_filtered_dimensions, get_filtered_fact_table
+from utilities_db_connections import create_snow_connection, close_snow_connection
+from utilities_data import get_filtered_dimensions, get_filtered_fact_table
 from global_parameters import *
 import streamlit as st
 
@@ -11,7 +11,7 @@ def apply_filters():
 
     conn = None
     try:
-        conn = create_connection()
+        conn = create_snow_connection()
 
         #Selected values initialization
         selected_years = st.session_state[COMPLETE_YEAR_IDS_LIST_KEY]
@@ -67,7 +67,7 @@ def apply_filters():
         #st.write(f'Number of rows filtered in the fact table: {len(st.session_state[FACT_TABLE_KEY])}')
 
     finally:
-        close_connection(conn)
+        close_snow_connection(conn)
 
 # -----------------------------------------------------------------------
 #                              WIDGETS

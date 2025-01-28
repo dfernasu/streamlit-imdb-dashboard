@@ -1,0 +1,30 @@
+
+Commands used to setup the local PostgreSQL database:
+
+    - Check if the command Postgres command works:
+        psql --version
+    - Create database (only executed 1 time):
+        psql -U postgres
+        CREATE DATABASE practice_datasets;
+        ALTER DATABASE practice_datasets SET client_encoding TO 'UTF8';
+        \q
+    - Schema creation (can be executed several times):
+        psql -U postgres -f schema_creation_psql.sql
+    - The next commands can be used to check the results 
+    (use "psql -U postgres" to enter the Postgres console):
+        - List all databases:
+            \l
+        - Connect to the database:
+            \c practice_datasets
+        - Show all schemas in database:
+            \dn
+        - Show all tables in schema:
+            SELECT * from pg_tables where schemaname='imdb_dwh';
+        - Terminate active connections:
+            SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'practice_datasets' AND pid <> pg_backend_pid();
+        - Drop database
+            DROP DATABASE practice_datasets WITH (FORCE);
+
+    NOTE: To use the psql command in Windows, it is necessary to add the next path to the 
+    Environmental Variable PATH, and executing it as Admin:
+        <Installation folder>\PostgreSQL\<version>\bin\

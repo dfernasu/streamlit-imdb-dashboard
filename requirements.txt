@@ -2,7 +2,9 @@
 #           Dependencies needed to run the app
 # -----------------------------------------------------------------------
 
+psycopg2
+config
 snowflake-connector-python[pandas]
 streamlit
 pandas
-plotly 
+plotly

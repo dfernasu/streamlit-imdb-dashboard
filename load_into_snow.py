@@ -6,7 +6,7 @@
 #
 # ///////////////////////////////////////////////////////////////////////
 
-from utilities_snow_connections import *
+from utilities_db_connections import *
 from snowflake.connector.errors import Error
 from snowflake.connector import SnowflakeConnection
 from snowflake.connector.pandas_tools import write_pandas
@@ -18,7 +18,7 @@ import pandas as pd
 
 PROYECT_FOLDER = "C:/Users/dfernasu/OneDrive - NTT DATA EMEAL/Documentos/TareasSnowflake/ProyectoSnowStreamlit"
 DATASETS_FOLDER = f"{PROYECT_FOLDER}/datasets/"
-SQL_SCRIPT_PATH = f"{PROYECT_FOLDER}/scripts/schema_creation.sql"
+SQL_SCRIPT_PATH = f"{PROYECT_FOLDER}/scripts/schema_creation_snow.sql"
 
 DATABASE = 'PRACTICE_DATASETS'
 SCHEMA = 'IMDB_DWH'
@@ -71,7 +71,7 @@ def load_table_from_dataset(conn: SnowflakeConnection, table_name: str, dataset:
 # -----------------------------------------------------------------------
 
 try:
-    conn = create_connection(DATABASE, WAREHOUSE)
+    conn = create_snow_connection(DATABASE, WAREHOUSE)
     
     if(conn is not None):
         
@@ -109,4 +109,4 @@ except Exception as unknown_error:
     raise_unknown_error(unknown_error)
 
 finally:
-    close_connection(conn)
+    close_snow_connection(conn)
