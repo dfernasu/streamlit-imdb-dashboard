@@ -10,6 +10,7 @@ from configparser import ConfigParser
 import psycopg2 as psy
 import snowflake.connector
 from utilities_navigation import get_login_state, get_credentials
+import logging as log
 
 # -----------------------------------------------------------------------
 #                          GLOBAL PARAMETERS
@@ -25,26 +26,19 @@ PSQL_DATA = "postgresql-data"
 # -----------------------------------------------------------------------
 
 def raise_unknown_error(unknown_error: Exception):
-    print("[ERROR] An unknown error has occurred:")
-    print(f"\t Msg: {unknown_error}")
+    log.error("[ERROR] An unknown error has occurred:\n\t- Msg: {unknown_error}")
     raise unknown_error
 
 def raise_login_error():
     login_exception = Exception('The user is not logged into the snowflake account.')
-    print(f"\t Msg: {login_exception}")
     raise login_exception
 
 def raise_snowflake_error(snowflake_error: snowflake.connector.errors.Error):
-    print("[ERROR] An error has occurred in snowflake:")
-    print(f"\t Msg: {snowflake_error.msg}")
-    print(f"\t Query with id {snowflake_error.sfqid} executed: {snowflake_error.query}")
-    print(f"\t Error Code: {snowflake_error.errno}")
+    log.error(f"[ERROR] An error has occurred in snowflake:\n\t- Msg: {snowflake_error.msg}\n\t- Query with id {snowflake_error.sfqid} executed: {snowflake_error.query}\n\t- Error Code: {snowflake_error.errno}")
     raise snowflake_error
 
 def raise_psql_error(psql_error):
-    print("[ERROR] An error has occurred in Postgresql:")
-    print(f"\t Msg: {psql_error.pgerror}")
-    print(f"\t Error Code: {psql_error.pgcode}")
+    log.error(f"[ERROR] An error has occurred in Postgresql:\n\t- Msg: {psql_error.pgerror}\n\t- Error Code: {psql_error.pgcode}")
     raise psql_error
 
 # -----------------------------------------------------------------------
@@ -96,7 +90,7 @@ def validate_credentials(username, password):
     
 def create_snow_connection():
     try:
-        print("\n----------- Creating a connection to the Snowflake Account -----------")
+        log.info("\n----------- Creating a connection to the Snowflake Account -----------")
 
         if get_login_state():
             
@@ -120,16 +114,16 @@ def create_snow_connection():
         raise_unknown_error(unknown_error)
 
     else:
-        print(f"[SUCCESS] Connected to the account: {conn.account} with user {conn.user}, using the database {conn.database} and the warehouse {conn.warehouse}")
+        log.info(f"[SUCCESS] Connected to the account: {conn.account} with user {conn.user}, using the database {conn.database} and the warehouse {conn.warehouse}")
         return conn
     
 def close_snow_connection(conn):
     if(conn is not None):
-        print("\n----------- Closing the connection with the Snowflake Account -----------")
+        log.info("\n----------- Closing the connection with the Snowflake Account -----------")
         conn.close()
-        print("[SUCCESS] Connection to Snowflake closed successfully.")
+        log.info("[SUCCESS] Connection to Snowflake closed successfully.")
     else:
-        print("[ERROR] Not a valid connection to close.")
+        log.error("[ERROR] Not a valid connection to close.")
 
 # -----------------------------------------------------------------------
 #                           POSTGRESQL FUNCTIONS
@@ -148,7 +142,7 @@ def dict_to_conn_str(config):
 
 def create_psql_connection():
     try:
-        print("\n----------- Creating a connection to the Local Postgresql -----------")
+        log.info("\n----------- Creating a connection to the Local Postgresql -----------")
 
         if get_login_state():
             
@@ -171,13 +165,13 @@ def create_psql_connection():
         raise_unknown_error(unknown_error)
 
     else:
-        print(f"[SUCCESS] Connected to the Local PostgreSQL with user {config['user']} and the database {connected_database}")
+        log.info(f"[SUCCESS] Connected to the Local PostgreSQL with user {config['user']} and the database {connected_database}")
         return conn
     
 def close_psql_connection(conn):
     if(conn is not None):
-        print("\n----------- Closing the connection with the Local PostgreSQL -----------")
+        log.info("\n----------- Closing the connection with the Local PostgreSQL -----------")
         conn.close()
-        print("[SUCCESS] Connection to PostgreSQL closed successfully.")
+        log.info("[SUCCESS] Connection to PostgreSQL closed successfully.")
     else:
-        print("[ERROR] Not a valid connection to close.")
+        log.error("[ERROR] Not a valid connection to close.")

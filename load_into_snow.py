@@ -11,6 +11,7 @@ from snowflake.connector.errors import Error
 from snowflake.connector import SnowflakeConnection
 from snowflake.connector.pandas_tools import write_pandas
 import pandas as pd
+import logging as log
 
 # -----------------------------------------------------------------------
 #                          GLOBAL PARAMETERS
@@ -35,21 +36,21 @@ datasets_names = ['dim_genres', 'dim_actors', 'dim_directors', 'dim_years', 'bri
 
 def schema_creation():
 
-    print(f"\n----------- Creation of the schema {SCHEMA} -----------")
+    log.info(f"\n----------- Creation of the schema {SCHEMA} -----------")
 
     with open(SQL_SCRIPT_PATH, 'r', encoding='utf-8') as file:
         for cursor in conn.execute_stream(file):
             for result in cursor:
-                print(f"\t - {result}")
+                log.info(f"\t - {result}")
         file.close()
 
-    print(f"[SUCCESS] Schema {SCHEMA} created.")
+    log.info(f"[SUCCESS] Schema {SCHEMA} created.")
 
 
 def load_dataset(name: str):
     complete_path = DATASETS_FOLDER + name + '.csv'
     dataset = pd.read_csv(complete_path,sep=',', header=0)
-    print(f"\t - Loaded: {complete_path}")
+    log.info(f"\t - Loaded: {complete_path}")
 
     return dataset
 
@@ -63,7 +64,7 @@ def load_table_from_dataset(conn: SnowflakeConnection, table_name: str, dataset:
 
     assert(num_rows_inserted == len(dataset))
     
-    print(f"\t - The table: {table_name} was loaded with {num_rows_inserted} rows.")
+    log.info(f"\t - The table: {table_name} was loaded with {num_rows_inserted} rows.")
 
 
 # -----------------------------------------------------------------------
@@ -81,23 +82,14 @@ try:
         
         schema_creation()
 
-        #cursor.execute(f"SELECT COUNT(*) FROM dim_genres")
-        #df = cursor.fetch_pandas_all()
-        #print(df)
-
-        print(f"\n----------- Loading datasets from {DATASETS_FOLDER} -----------")
+        log.info(f"\n----------- Loading datasets from {DATASETS_FOLDER} -----------")
 
         datasets = []
         for dataset_name in datasets_names:
 
             df = load_dataset(dataset_name)
             load_table_from_dataset(conn, dataset_name, df)
-        '''
-        print(f"[SUCCESS] All datasets loaded into {SCHEMA}. Showing 50 rows:")
 
-        cursor.execute(f"SELECT * FROM fact_table limit 50")
-        print(cursor.fetch_pandas_all())
-'''
         conn.commit()
 
 except snowflake.connector.errors.Error as snowflake_error:

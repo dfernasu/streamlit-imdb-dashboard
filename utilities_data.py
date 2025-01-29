@@ -15,6 +15,7 @@ from global_parameters import *
 import pandas as pd
 import streamlit as st
 import numpy as np
+import logging as log
 
 # -----------------------------------------------------------------------
 #                       ADAPTERS FOR NUMPY TYPES
@@ -87,7 +88,7 @@ def get_filtered_dimensions(conn: SnowflakeConnection, table_name: str, colum_to
     cursor.execute(query)
     df = cursor.fetch_pandas_all()
 
-    print(f"[SUCCESS] {len(df)} elements retrieved from the table {table_name}")
+    log.info(f"[SUCCESS] {len(df)} elements retrieved from the table {table_name}")
 
     return df
 
@@ -120,7 +121,7 @@ def get_filtered_fact_table(conn: SnowflakeConnection, min_revenue: float = 0.0,
     cursor.execute(query)
     df = cursor.fetch_pandas_all()
 
-    print(f"[SUCCESS] {len(df)} elements retrieved from the fact table")
+    log.info(f"[SUCCESS] {len(df)} elements retrieved from the fact table")
 
     return df
 
@@ -150,7 +151,7 @@ def save_local_table(conn, schema_name: str, table_name: str, data: pd.DataFrame
         assert(bd_count == pd_count)
 
     except (AssertionError) as error:
-        print(f"[ERROR] The number of inserted rows for {table_name} is incorrect: Dataframe has {pd_count} rows and the DB table {bd_count} rows.")
+        log.critical(f"[ERROR] The number of inserted rows for {table_name} is incorrect: Dataframe has {pd_count} rows and the DB table {bd_count} rows.")
         conn.rollback()
         return False
     except (psy.DatabaseError) as error: 
@@ -165,7 +166,7 @@ def save_local_table(conn, schema_name: str, table_name: str, data: pd.DataFrame
     finally:
         cursor.close()
     
-    print(f"\t- Dataframe {table_name} saved to local db")
+    log.info(f"\t- Dataframe {table_name} saved to local db")
     return True
 
 
@@ -179,7 +180,7 @@ def validate_initial_data(cached_value):
 @st.cache_resource(validate=validate_initial_data, show_spinner="Downloading data from your Snowflake account...")
 def get_initial_data():
 
-    print("[INFO] Getting data from the Snowflake account")
+    log.info("[INFO] Getting data from the Snowflake account")
     
     # Get data from the snowflake account
     snow_conn = None
@@ -198,7 +199,7 @@ def get_initial_data():
         max_revenue = get_max_revenue(snow_conn)
         fact_table = get_filtered_fact_table(snow_conn)
 
-        print("[SUCCESS] All data from Snowflake was downloaded.")
+        log.info("[SUCCESS] All data from Snowflake was downloaded.")
         
     finally:
         db_schema = snow_conn.schema
@@ -224,7 +225,7 @@ def get_initial_data():
     st.session_state[INITIAL_DATA_KEY] = True
 
     # Save data into the local db
-    print("[INFO] Saving data into the local database.")
+    log.info("[INFO] Saving data into the local database.")
 
     psql_conn = None
     try:
@@ -240,7 +241,7 @@ def get_initial_data():
 
         save_local_table(psql_conn, db_schema, 'fact_table', fact_table)
 
-        print("[SUCCESS] All data from Snowflake saved into the local database.")
+        log.info("[SUCCESS] All data from Snowflake saved into the local database.")
     
     except (psy.DatabaseError, psy.OperationalError, psy.DataError, psy.IntegrityError, psy.InternalError, psy.ProgrammingError) as psql_error:
         raise_psql_error(psql_error)
