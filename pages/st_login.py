@@ -1,5 +1,6 @@
 import streamlit as st
 from utilities_db_connections import validate_credentials
+from utilities_data import get_initial_data
 from utilities_navigation import set_credentials, show_info_toast, move_to_dashboard
 
 # -----------------------------------------------------------------------
@@ -15,7 +16,9 @@ def login_form():
 
     if login_button:
         if validate_credentials(username, password):
+            st.success(f"Valid credentials")
             set_credentials(username, password)
+            get_initial_data()
             move_to_dashboard()
         else:
             st.error("Invalid credentials")

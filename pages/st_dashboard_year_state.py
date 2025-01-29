@@ -17,9 +17,6 @@ show_info_toast()
 if not get_login_state():
     move_to_login()
 
-# Data initialization
-get_initial_data()
-
 # Sidebar initialization
 get_filter_sidebar()
 

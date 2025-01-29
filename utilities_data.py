@@ -2,15 +2,45 @@
 #
 #                       UTILITIES SNOW DATA
 #   Functions to retrieve and transform data from the IMDB_DWH schema,
-#   stored in Snowflake.
+#   stored in Snowflake, into the local PostgreSQL and session.
 #
 # ///////////////////////////////////////////////////////////////////////
 
+import psycopg2 as psy
+import psycopg2.extras as extras
+from psycopg2.extensions import register_adapter, AsIs
 from snowflake.connector import SnowflakeConnection
-from utilities_db_connections import create_snow_connection, close_snow_connection
+from utilities_db_connections import create_snow_connection, close_snow_connection, create_psql_connection, close_psql_connection, raise_psql_error, raise_unknown_error
 from global_parameters import *
 import pandas as pd
 import streamlit as st
+import numpy as np
+
+# -----------------------------------------------------------------------
+#                       ADAPTERS FOR NUMPY TYPES
+#       Necessary to insert Pandas Dataframes into PostgreSQL
+# -----------------------------------------------------------------------
+
+def addapt_numpy_int16(numpy_int16):
+    return AsIs(numpy_int16)
+
+def addapt_numpy_int32(numpy_int32):
+    return AsIs(numpy_int32)
+
+def addapt_numpy_int64(numpy_int64):
+    return AsIs(numpy_int64)
+
+def addapt_numpy_float32(numpy_float32):
+    return AsIs(numpy_float32)
+
+def addapt_numpy_float64(numpy_float64):
+    return AsIs(numpy_float64)
+
+register_adapter(np.int16, addapt_numpy_int16)
+register_adapter(np.int32, addapt_numpy_int32)
+register_adapter(np.int64, addapt_numpy_int64)
+register_adapter(np.float32, addapt_numpy_float32)
+register_adapter(np.float64, addapt_numpy_float64)
 
 # -----------------------------------------------------------------------
 #                          GENERAL FUNCTIONS
@@ -98,38 +128,81 @@ def get_filtered_fact_table(conn: SnowflakeConnection, min_revenue: float = 0.0,
 #    LOCAL BD FUNCTIONS (Used to store and query data from PostgreSQL)
 # -----------------------------------------------------------------------
 
-def save_local_table(table_name: str, data: pd.DataFrame):
-    return 0    # TODO: Not yet implemented
+def save_local_table(conn, schema_name: str, table_name: str, data: pd.DataFrame, truncate_table = True):
+
+    tuples = [tuple(x) for x in data.to_numpy()] 
+    cols = ','.join(list(data.columns)) 
+
+    query = f"INSERT INTO {schema_name}.{table_name}({cols}) VALUES %s"
+
+    cursor = conn.cursor()
+    
+    try:
+        if truncate_table:
+            cursor.execute(f"TRUNCATE TABLE {schema_name}.{table_name} CASCADE")
+
+        extras.execute_values(cursor, query, tuples) 
+        conn.commit()
+
+        cursor.execute(f"SELECT COUNT(*) FROM {schema_name}.{table_name}")
+        bd_count = cursor.fetchone()[0]
+        pd_count = len(data)
+        assert(bd_count == pd_count)
+
+    except (AssertionError) as error:
+        print(f"[ERROR] The number of inserted rows for {table_name} is incorrect: Dataframe has {pd_count} rows and the DB table {bd_count} rows.")
+        conn.rollback()
+        return False
+    except (psy.DatabaseError) as error: 
+        raise_psql_error(error)
+        conn.rollback() 
+        return False
+    except (Exception) as error: 
+        raise_unknown_error(error)
+        conn.rollback() 
+        return False
+    
+    finally:
+        cursor.close()
+    
+    print(f"\t- Dataframe {table_name} saved to local db")
+    return True
 
 
 # -----------------------------------------------------------------------
-#         FIRST CONNECTION FUNCTIONS (only executed the first time) 
+# FIRST CONNECTION FUNCTIONS (only executed when the user logs into the app) 
 # -----------------------------------------------------------------------
 
 def validate_initial_data(cached_value):
     return DIM_YEARS_KEY in st.session_state and DIM_GENRES_KEY in st.session_state and DIM_DIRECTORS_KEY in st.session_state and DIM_ACTORS_KEY in st.session_state
 
-@st.cache_resource(validate=validate_initial_data)
+@st.cache_resource(validate=validate_initial_data, show_spinner="Downloading data from your Snowflake account...")
 def get_initial_data():
+
+    print("[INFO] Getting data from the Snowflake account")
     
     # Get data from the snowflake account
-    conn = None
+    snow_conn = None
+    db_schema = None
     try:
-        conn = create_snow_connection()
+        snow_conn = create_snow_connection()
 
-        dim_years = get_filtered_dimensions(conn, 'dim_years')
-        dim_genres = get_filtered_dimensions(conn, 'dim_genres')
-        dim_directors = get_filtered_dimensions(conn, 'dim_directors') 
-        dim_actors = get_filtered_dimensions(conn, 'dim_actors')
+        dim_years = get_filtered_dimensions(snow_conn, 'dim_years')
+        dim_genres = get_filtered_dimensions(snow_conn, 'dim_genres')
+        dim_directors = get_filtered_dimensions(snow_conn, 'dim_directors') 
+        dim_actors = get_filtered_dimensions(snow_conn, 'dim_actors')
 
-        bridge_genres = get_filtered_dimensions(conn, 'bridge_genres')
-        bridge_actors = get_filtered_dimensions(conn, 'bridge_actors')
+        bridge_genres = get_filtered_dimensions(snow_conn, 'bridge_genres')
+        bridge_actors = get_filtered_dimensions(snow_conn, 'bridge_actors')
 
-        max_revenue = get_max_revenue(conn)
-        fact_table = get_filtered_fact_table(conn)
+        max_revenue = get_max_revenue(snow_conn)
+        fact_table = get_filtered_fact_table(snow_conn)
+
+        print("[SUCCESS] All data from Snowflake was downloaded.")
         
     finally:
-        close_snow_connection(conn)
+        db_schema = snow_conn.schema
+        close_snow_connection(snow_conn)
 
     # Save data into session
     st.session_state[DIM_YEARS_KEY] = dim_years
@@ -148,10 +221,38 @@ def get_initial_data():
     st.session_state[MAX_REVENUE_KEY] = max_revenue
 
     st.session_state[CHECKBOXES_YEAR_STATES_KEY] = [True] * len(st.session_state[COMPLETE_YEAR_IDS_LIST_KEY])
-
     st.session_state[INITIAL_DATA_KEY] = True
 
-    # TODO: Save data into the local db
+    # Save data into the local db
+    print("[INFO] Saving data into the local database.")
+
+    psql_conn = None
+    try:
+        psql_conn = create_psql_connection()
+
+        save_local_table(psql_conn, db_schema, 'dim_years', dim_years)
+        save_local_table(psql_conn, db_schema, 'dim_genres', dim_genres)
+        save_local_table(psql_conn, db_schema, 'dim_directors', dim_directors)
+        save_local_table(psql_conn, db_schema, 'dim_actors', dim_actors)
+
+        save_local_table(psql_conn, db_schema, 'bridge_genres', bridge_genres)
+        save_local_table(psql_conn, db_schema, 'bridge_actors', bridge_actors)
+
+        save_local_table(psql_conn, db_schema, 'fact_table', fact_table)
+
+        print("[SUCCESS] All data from Snowflake saved into the local database.")
+    
+    except (psy.DatabaseError, psy.OperationalError, psy.DataError, psy.IntegrityError, psy.InternalError, psy.ProgrammingError) as psql_error:
+        raise_psql_error(psql_error)
+        psql_conn.rollback()
+
+    except Exception as unknown_error:
+        raise_unknown_error(unknown_error)
+        psql_conn.rollback()
+
+    finally:
+        close_psql_connection(psql_conn)
+
 
 # -----------------------------------------------------------------------
 #       GRAPH FUNCTIONS (used to create charts from the dataframes) 

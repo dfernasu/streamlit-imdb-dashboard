@@ -7,7 +7,7 @@
 # ///////////////////////////////////////////////////////////////////////
 
 from configparser import ConfigParser
-import psycopg2
+import psycopg2 as psy
 import snowflake.connector
 from utilities_navigation import get_login_state, get_credentials
 
@@ -84,6 +84,8 @@ def validate_credentials(username, password):
         close_snow_connection(conn)
         return True
     
+    except snowflake.connector.errors.DatabaseError:
+        return False
     except Exception as unknown_error:
         raise_unknown_error(unknown_error)
         return False
@@ -109,9 +111,9 @@ def create_snow_connection():
         else:
             raise_login_error()
         
-    except snowflake.connector.errors.Error as snowflake_error:
+    except snowflake.connector.errors as snowflake_error:
         close_snow_connection(conn)
-        raise_unknown_error(snowflake_error)
+        raise_snowflake_error(snowflake_error)
     
     except Exception as unknown_error:
         close_snow_connection(conn)
@@ -152,7 +154,7 @@ def create_psql_connection():
             
             config = get_config_data(section=PSQL_SECTION)
             
-            conn = psycopg2.connect(dict_to_conn_str(config))
+            conn = psy.connect(dict_to_conn_str(config))
 
             cursor = conn.cursor()
             cursor.execute('SELECT current_database();')
@@ -162,7 +164,7 @@ def create_psql_connection():
         else:
             raise_login_error()
     
-    except (psycopg2.DatabaseError, psycopg2.OperationalError, psycopg2.DataError, psycopg2.IntegrityError, psycopg2.InternalError, psycopg2.ProgrammingError) as psql_error:
+    except (psy.DatabaseError, psy.OperationalError, psy.DataError, psy.IntegrityError, psy.InternalError, psy.ProgrammingError) as psql_error:
         raise_psql_error(psql_error)
 
     except Exception as unknown_error:
@@ -179,7 +181,3 @@ def close_psql_connection(conn):
         print("[SUCCESS] Connection to PostgreSQL closed successfully.")
     else:
         print("[ERROR] Not a valid connection to close.")
-    
-conn = create_psql_connection()
-close_psql_connection(conn)
-
