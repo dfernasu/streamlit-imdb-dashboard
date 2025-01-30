@@ -5,6 +5,10 @@
 #
 # ///////////////////////////////////////////////////////////////////////
 
+# Logger constants
+LOGGER_DB_CONNECTIONS_KEY = 'app.utilities.db.connections'
+LOGGER_DATA_KEY = 'app.utilities.data'
+
 # Streamlit keys
 SIDEBAR_STATE_KEY = 'sidebar_state'
 

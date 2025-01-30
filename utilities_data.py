@@ -17,6 +17,8 @@ import streamlit as st
 import numpy as np
 import logging as log
 
+logger_data = log.getLogger(LOGGER_DATA_KEY)
+
 # -----------------------------------------------------------------------
 #                       ADAPTERS FOR NUMPY TYPES
 #       Necessary to insert Pandas Dataframes into PostgreSQL
@@ -88,7 +90,7 @@ def get_filtered_dimensions_snow(conn: SnowflakeConnection, table_name: str, col
     cursor.execute(query)
     df = cursor.fetch_pandas_all()
 
-    log.info(f"[SUCCESS] {len(df)} elements retrieved from the table {table_name}")
+    logger_data.info(f"[SUCCESS] {len(df)} elements retrieved from the table {table_name}")
 
     return df
 
@@ -121,7 +123,7 @@ def get_filtered_fact_table_snow(conn: SnowflakeConnection, min_revenue: float =
     cursor.execute(query)
     df = cursor.fetch_pandas_all()
 
-    log.info(f"[SUCCESS] {len(df)} elements retrieved from the fact table")
+    logger_data.info(f"[SUCCESS] {len(df)} elements retrieved from the fact table")
 
     return df
 
@@ -151,7 +153,7 @@ def save_local_table(conn, schema_name: str, table_name: str, data: pd.DataFrame
         assert(bd_count == pd_count)
 
     except (AssertionError) as error:
-        log.critical(f"[ERROR] The number of inserted rows for {table_name} is incorrect: Dataframe has {pd_count} rows and the DB table {bd_count} rows.")
+        logger_data.critical(f"[ERROR] The number of inserted rows for {table_name} is incorrect: Dataframe has {pd_count} rows and the DB table {bd_count} rows.")
         conn.rollback()
         return False
     except (psy.DatabaseError) as error: 
@@ -166,7 +168,7 @@ def save_local_table(conn, schema_name: str, table_name: str, data: pd.DataFrame
     finally:
         cursor.close()
     
-    log.info(f"\t- Dataframe {table_name} saved to local db")
+    logger_data.info(f"\t Dataframe {table_name} saved to local db")
     return True
 
 def get_filtered_dimensions_psql(conn, table_name: str, columns: list, colum_to_filter: str = None, filter_list: list = None, is_int=False):
@@ -183,7 +185,7 @@ def get_filtered_dimensions_psql(conn, table_name: str, columns: list, colum_to_
 
     df = pd.DataFrame(rows, columns=columns)
 
-    log.info(f"[SUCCESS] {len(df)} elements retrieved from the table {table_name}")
+    logger_data.info(f"[SUCCESS] {len(df)} elements retrieved from the table {table_name}")
 
     return df
 
@@ -219,7 +221,7 @@ def get_filtered_fact_table_psql(conn, columns: list, min_revenue: float = 0.0, 
 
     df = pd.DataFrame(rows, columns=columns)
 
-    log.info(f"[SUCCESS] {len(df)} elements retrieved from the fact table")
+    logger_data.info(f"[SUCCESS] {len(df)} elements retrieved from the fact table")
 
     return df
 
@@ -233,7 +235,7 @@ def validate_initial_data(cached_value):
 @st.cache_resource(validate=validate_initial_data, show_spinner="Downloading data from your Snowflake account...")
 def get_initial_data():
 
-    log.info("[INFO] Getting data from the Snowflake account")
+    logger_data.info("[INFO] Getting data from the Snowflake account")
     
     # Get data from the snowflake account
     snow_conn = None
@@ -252,7 +254,7 @@ def get_initial_data():
         max_revenue = get_max_revenue(snow_conn)
         fact_table = get_filtered_fact_table_snow(snow_conn)
 
-        log.info("[SUCCESS] All data from Snowflake was downloaded.")
+        logger_data.info("[SUCCESS] All data from Snowflake was downloaded.")
         
     finally:
         db_schema = snow_conn.schema
@@ -287,7 +289,7 @@ def get_initial_data():
     st.session_state[INITIAL_DATA_KEY] = True
 
     # Save data into the local db
-    log.info("[INFO] Saving data into the local database.")
+    logger_data.info("[INFO] Saving data into the local database.")
 
     psql_conn = None
     try:
@@ -303,7 +305,7 @@ def get_initial_data():
 
         save_local_table(psql_conn, db_schema, 'fact_table', fact_table)
 
-        log.info("[SUCCESS] All data from Snowflake saved into the local database.")
+        logger_data.info("[SUCCESS] All data from Snowflake saved into the local database.")
     
     except (psy.DatabaseError, psy.OperationalError, psy.DataError, psy.IntegrityError, psy.InternalError, psy.ProgrammingError) as psql_error:
         raise_psql_error(psql_error)
