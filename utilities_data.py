@@ -77,7 +77,7 @@ def get_max_revenue(conn: SnowflakeConnection):
 
     return float(cursor.fetchone()[0])
 
-def get_filtered_dimensions(conn: SnowflakeConnection, table_name: str, colum_to_filter: str = None, filter_list: list = None, is_int=False):
+def get_filtered_dimensions_snow(conn: SnowflakeConnection, table_name: str, colum_to_filter: str = None, filter_list: list = None, is_int=False):
 
     query = f"SELECT * FROM IMDB_DWH.{table_name}"
 
@@ -92,7 +92,7 @@ def get_filtered_dimensions(conn: SnowflakeConnection, table_name: str, colum_to
 
     return df
 
-def get_filtered_fact_table(conn: SnowflakeConnection, min_revenue: float = 0.0, max_revenue:float = None, year_id_list: list = None, bridge_genre_id_list: list = None, max_user_score: str = None, max_critic_score: str = None):
+def get_filtered_fact_table_snow(conn: SnowflakeConnection, min_revenue: float = 0.0, max_revenue:float = None, year_id_list: list = None, bridge_genre_id_list: list = None, max_user_score: str = None, max_critic_score: str = None):
     
     year_column = 'year_id'
     genre_column = 'bridge_genre_id'
@@ -169,6 +169,59 @@ def save_local_table(conn, schema_name: str, table_name: str, data: pd.DataFrame
     log.info(f"\t- Dataframe {table_name} saved to local db")
     return True
 
+def get_filtered_dimensions_psql(conn, table_name: str, columns: list, colum_to_filter: str = None, filter_list: list = None, is_int=False):
+
+    query = f"SELECT * FROM imdb_dwh.{table_name}"
+
+    if colum_to_filter is not None and filter_list is not None:
+        query = query + ' WHERE ' + list_to_wherein(colum_to_filter, filter_list, is_int)
+  
+    with conn.cursor() as cursor:
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        cursor.close()
+
+    df = pd.DataFrame(rows, columns=columns)
+
+    log.info(f"[SUCCESS] {len(df)} elements retrieved from the table {table_name}")
+
+    return df
+
+def get_filtered_fact_table_psql(conn, columns: list, min_revenue: float = 0.0, max_revenue:float = None, year_id_list: list = None, bridge_genre_id_list: list = None, max_user_score: str = None, max_critic_score: str = None):
+    
+    year_column = 'year_id'
+    genre_column = 'bridge_genre_id'
+    user_score_column = 'user_score_category'
+    critic_score_column = 'critic_score_category'
+    user_score_list = get_score_list(max_user_score)
+    critic_score_list = get_score_list(max_critic_score)
+
+    query = f"SELECT * FROM IMDB_DWH.fact_table"
+    
+    if(max_revenue is None):
+        query = query + f" WHERE revenue BETWEEN {min_revenue} AND {get_max_revenue(conn)}"
+    else:
+        query = query + f" WHERE revenue BETWEEN {min_revenue} AND {max_revenue}"
+
+    if(year_id_list is not None):
+        query = query + f" AND {list_to_wherein(year_column, year_id_list, is_int=True)}"
+    if(bridge_genre_id_list is not None):
+        query = query + f" AND {list_to_wherein(genre_column, bridge_genre_id_list, is_int=True)}"
+    if(user_score_list is not None):
+        query = query + f" AND {list_to_wherein(user_score_column, user_score_list)}"
+    if(critic_score_list is not None):
+        query = query + f" AND {list_to_wherein(critic_score_column, critic_score_list)}"
+
+    with conn.cursor() as cursor:
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        cursor.close()
+
+    df = pd.DataFrame(rows, columns=columns)
+
+    log.info(f"[SUCCESS] {len(df)} elements retrieved from the fact table")
+
+    return df
 
 # -----------------------------------------------------------------------
 # FIRST CONNECTION FUNCTIONS (only executed when the user logs into the app) 
@@ -188,16 +241,16 @@ def get_initial_data():
     try:
         snow_conn = create_snow_connection()
 
-        dim_years = get_filtered_dimensions(snow_conn, 'dim_years')
-        dim_genres = get_filtered_dimensions(snow_conn, 'dim_genres')
-        dim_directors = get_filtered_dimensions(snow_conn, 'dim_directors') 
-        dim_actors = get_filtered_dimensions(snow_conn, 'dim_actors')
+        dim_years = get_filtered_dimensions_snow(snow_conn, 'dim_years')
+        dim_genres = get_filtered_dimensions_snow(snow_conn, 'dim_genres')
+        dim_directors = get_filtered_dimensions_snow(snow_conn, 'dim_directors') 
+        dim_actors = get_filtered_dimensions_snow(snow_conn, 'dim_actors')
 
-        bridge_genres = get_filtered_dimensions(snow_conn, 'bridge_genres')
-        bridge_actors = get_filtered_dimensions(snow_conn, 'bridge_actors')
+        bridge_genres = get_filtered_dimensions_snow(snow_conn, 'bridge_genres')
+        bridge_actors = get_filtered_dimensions_snow(snow_conn, 'bridge_actors')
 
         max_revenue = get_max_revenue(snow_conn)
-        fact_table = get_filtered_fact_table(snow_conn)
+        fact_table = get_filtered_fact_table_snow(snow_conn)
 
         log.info("[SUCCESS] All data from Snowflake was downloaded.")
         
@@ -210,11 +263,20 @@ def get_initial_data():
     st.session_state[DIM_GENRES_KEY] = dim_genres
     st.session_state[DIM_DIRECTORS_KEY] = dim_directors
     st.session_state[DIM_ACTORS_KEY] = dim_actors
+
+    st.session_state[DIM_YEARS_COLUMNS_KEY] = list(dim_years.columns)
+    st.session_state[DIM_GENRES_COLUMNS_KEY] = list(dim_genres.columns)
+    st.session_state[DIM_DIRECTORS_COLUMNS_KEY] = list(dim_directors.columns)
+    st.session_state[DIM_ACTORS_COLUMNS_KEY] = list(dim_actors.columns)
     
     st.session_state[BRIDGE_ACTORS_KEY] = bridge_actors
     st.session_state[BRIDGE_GENRES_KEY] = bridge_genres
 
+    st.session_state[BRIDGE_ACTORS_COLUMNS_KEY] = list(bridge_actors.columns)
+    st.session_state[BRIDGE_GENRES_COLUMNS_KEY] = list(bridge_genres.columns)
+
     st.session_state[FACT_TABLE_KEY] = fact_table
+    st.session_state[FACT_TABLE_COLUMNS_KEY] = list(fact_table.columns)
 
     st.session_state[COMPLETE_YEAR_LIST_KEY] = dim_years['YEAR']
     st.session_state[COMPLETE_YEAR_IDS_LIST_KEY] = dim_years['YEAR_ID']
