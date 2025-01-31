@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------
-#           Dockerfile used to configure the container
+#           Dockerfile used to configure the web container
 # -----------------------------------------------------------------------
 
 # Docker Image with python installed 
