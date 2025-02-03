@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------
 
 psycopg2
-config
+python-dotenv
 snowflake-connector-python[pandas]
 streamlit
 pandas

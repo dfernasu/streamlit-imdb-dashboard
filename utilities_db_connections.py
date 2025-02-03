@@ -6,7 +6,8 @@
 #
 # ///////////////////////////////////////////////////////////////////////
 
-from configparser import ConfigParser
+from dotenv import load_dotenv
+import os
 import psycopg2 as psy
 import snowflake.connector
 from utilities_navigation import get_login_state, get_credentials
@@ -14,15 +15,7 @@ import logging as log
 from global_parameters import LOGGER_DB_CONNECTIONS_KEY
 
 logger_db_conn = log.getLogger(LOGGER_DB_CONNECTIONS_KEY)
-
-# -----------------------------------------------------------------------
-#                          GLOBAL PARAMETERS
-# -----------------------------------------------------------------------
-
-DB_CONF_FILE = "./database.ini"
-SNOW_SECTION = "snowflake"
-PSQL_SECTION = "postgresql-connection"
-PSQL_DATA = "postgresql-data"
+load_dotenv()
 
 # -----------------------------------------------------------------------
 #                              EXCEPTIONS
@@ -44,30 +37,36 @@ def raise_psql_error(psql_error):
     logger_db_conn.error(f"[ERROR] An error has occurred in Postgresql:\n\t- Msg: {psql_error.pgerror}\n\t- Error Code: {psql_error.pgcode}")
     raise psql_error
 
+def raise_missing_env_variable(key_error: KeyError):
+    logger_db_conn.error(f"[ERROR] An getenvment Variable was not configured:\n\t- Msg: {key_error}")
+    raise key_error
+
 # -----------------------------------------------------------------------
-#                           GENERAL FUNCTIONS
+#                           SNOWFLAKE FUNCTIONS
 # -----------------------------------------------------------------------
 
-def get_config_data(filename=DB_CONF_FILE, section=SNOW_SECTION):
-    parser = ConfigParser()
-
-    with open(filename, 'r', encoding='utf-8', errors='ignore') as file:
-        parser.read_file(file)
-    
+def get_snow_config():
     config = {}
-    if parser.has_section(section):
-        params = parser.items(section)
-        
-        for param in params:
-            config[param[0]] = param[1]
-    else:
-        raise Exception(f'Section {section} not found in the {filename} file')
+
+    try:
+        config["autocommit"] = bool(os.getenv("SNOW_AUTOCOMMIT"))
+        config["account"] = str(os.getenv("SNOW_ACCOUNT"))
+        config["user"] = str(os.getenv("SNOW_USER"))
+        config["password"] = str(os.getenv("SNOW_PASSWORD"))
+        config["database"] = str(os.getenv("SNOW_DATABASE"))
+        config["schema"] = str(os.getenv("SNOW_SCHEMA"))
+        config["warehouse"] = str(os.getenv("SNOW_WAREHOUSE"))
+
+    except KeyError as error:
+        raise_missing_env_variable(error)
+        return None
+    
     return config
 
 def validate_credentials(username, password):
     try:
 
-        config = get_config_data()
+        config = get_snow_config()
         config['user'] = username
         config['password'] = password
 
@@ -86,10 +85,6 @@ def validate_credentials(username, password):
     except Exception as unknown_error:
         raise_unknown_error(unknown_error)
         return False
-
-# -----------------------------------------------------------------------
-#                           SNOWFLAKE FUNCTIONS
-# -----------------------------------------------------------------------
     
 def create_snow_connection():
     try:
@@ -97,7 +92,7 @@ def create_snow_connection():
 
         if get_login_state():
             
-            config = get_config_data()
+            config = get_snow_config()
             config['user'], config['password'] = get_credentials()
             conn = snowflake.connector.connect(**config)
 
@@ -132,16 +127,21 @@ def close_snow_connection(conn):
 #                           POSTGRESQL FUNCTIONS
 # -----------------------------------------------------------------------
 
-def dict_to_conn_str(config):
+def get_psql_config():
+    config = {}
 
-    user = str(config['user'])
-    password = str(config['password'])
-    host = str(config['host'])
-    port = int(config['port'])
-    dbname = str(config['dbname'])
+    try:
+        config["user"] = str(os.getenv("POSTGRES_USER"))
+        config["password"] = str(os.getenv("POSTGRES_PASSWORD"))
+        config["dbname"] = str(os.getenv("POSTGRES_DATABASE"))
+        config["host"] = str(os.getenv("POSTGRES_HOST"))
+        config["port"] = int(os.getenv("POSTGRES_PORT"))
 
-    conn_str = f"host='{host}' port={port} user='{user}' password='{password}' dbname='{dbname}'"
-    return conn_str.encode('utf-8', 'ignore').decode('utf-8', 'strict')
+    except KeyError as error:
+        raise_missing_env_variable(error)
+        return None
+    
+    return config
 
 def create_psql_connection():
     try:
@@ -149,9 +149,8 @@ def create_psql_connection():
 
         if get_login_state():
             
-            config = get_config_data(section=PSQL_SECTION)
-            
-            conn = psy.connect(dict_to_conn_str(config))
+            config = get_psql_config()
+            conn = psy.connect(**config)
 
             cursor = conn.cursor()
             cursor.execute('SELECT current_database();')

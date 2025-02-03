@@ -36,6 +36,8 @@ services:
         condition: service_healthy
     networks:
       - db
+    environment:
+      - POSTGRES_HOST: db
 
 networks:
   db:
