@@ -18,8 +18,16 @@ def login_form():
         if validate_credentials(username, password):
             st.success(f"Valid credentials")
             set_credentials(username, password)
-            get_initial_data()
-            move_to_dashboard()
+            
+            get_initial_data_ok = get_initial_data()
+
+            if(get_initial_data_ok is None):
+                st.error("Sorry, this user is not allowed to make queries on the database. Try another account.")
+            else:
+                if get_initial_data_ok:
+                    move_to_dashboard()
+                else:
+                    st.error("An error has occurred while downloading the data")
         else:
             st.error("Invalid credentials")
 

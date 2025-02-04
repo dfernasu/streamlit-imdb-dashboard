@@ -22,14 +22,14 @@ load_dotenv()
 # -----------------------------------------------------------------------
 
 def raise_unknown_error(unknown_error: Exception):
-    logger_db_conn.error("[ERROR] An unknown error has occurred:\n\t- Msg: {unknown_error}")
+    logger_db_conn.error(f"[ERROR] An unknown error has occurred:\n\t- Msg: {unknown_error}")
     raise unknown_error
 
 def raise_login_error():
     login_exception = Exception('The user is not logged into the snowflake account.')
     raise login_exception
 
-def raise_snowflake_error(snowflake_error: snowflake.connector.errors.Error):
+def raise_snowflake_error(snowflake_error: Exception):
     logger_db_conn.error(f"[ERROR] An error has occurred in snowflake:\n\t- Msg: {snowflake_error.msg}\n\t- Query with id {snowflake_error.sfqid} executed: {snowflake_error.query}\n\t- Error Code: {snowflake_error.errno}")
     raise snowflake_error
 
@@ -76,6 +76,7 @@ def validate_credentials(username, password):
         cursor.execute(f'USE DATABASE {conn.database};')
         cursor.execute(f'USE WAREHOUSE {conn.warehouse};')
         cursor.execute(f'USE SCHEMA {conn.database}.{conn.schema};')
+        cursor.close()
                 
         close_snow_connection(conn)
         return True
@@ -85,6 +86,23 @@ def validate_credentials(username, password):
     except Exception as unknown_error:
         raise_unknown_error(unknown_error)
         return False
+    
+def validate_select_privileges(conn: snowflake.connector.SnowflakeConnection):
+    try:
+        cursor = conn.cursor()
+        cursor.execute(f'SELECT FILM_RANK FROM {conn.schema}.FACT_TABLE LIMIT 1')
+        cursor.close()
+
+    except snowflake.connector.errors.ProgrammingError as snow_error:
+        return False
+    except Exception as unknown_error:
+        raise_unknown_error(unknown_error)
+        return False
+
+    finally:
+        cursor.close()
+
+    return True
     
 def create_snow_connection():
     try:
@@ -100,6 +118,8 @@ def create_snow_connection():
             cursor.execute(f'USE DATABASE {conn.database};')
             cursor.execute(f'USE WAREHOUSE {conn.warehouse};')
             cursor.execute(f'USE SCHEMA {conn.database}.{conn.schema};')
+            cursor.close()
+
         else:
             raise_login_error()
         
@@ -155,6 +175,7 @@ def create_psql_connection():
             cursor = conn.cursor()
             cursor.execute('SELECT current_database();')
             connected_database = cursor.fetchall()[0][0]
+            cursor.close()
 
             assert(connected_database == str(config['dbname']))
         else:

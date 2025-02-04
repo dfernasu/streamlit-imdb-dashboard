@@ -8,9 +8,10 @@
 
 import psycopg2 as psy
 import psycopg2.extras as extras
-from psycopg2.extensions import register_adapter, AsIs
+import snowflake.connector
 from snowflake.connector import SnowflakeConnection
-from utilities_db_connections import create_snow_connection, close_snow_connection, create_psql_connection, close_psql_connection, raise_psql_error, raise_unknown_error
+from psycopg2.extensions import register_adapter, AsIs
+from utilities_db_connections import validate_select_privileges, create_snow_connection, close_snow_connection, create_psql_connection, close_psql_connection, raise_psql_error, raise_unknown_error
 from global_parameters import *
 import pandas as pd
 import streamlit as st
@@ -76,8 +77,10 @@ def get_max_revenue(conn: SnowflakeConnection):
 
     cursor = conn.cursor()
     cursor.execute(query)
+    max_revenue = float(cursor.fetchone()[0])
+    cursor.close()
 
-    return float(cursor.fetchone()[0])
+    return max_revenue
 
 def get_filtered_dimensions_snow(conn: SnowflakeConnection, table_name: str, colum_to_filter: str = None, filter_list: list = None, is_int=False):
 
@@ -89,6 +92,7 @@ def get_filtered_dimensions_snow(conn: SnowflakeConnection, table_name: str, col
     cursor = conn.cursor()
     cursor.execute(query)
     df = cursor.fetch_pandas_all()
+    cursor.close()
 
     logger_data.info(f"[SUCCESS] {len(df)} elements retrieved from the table {table_name}")
 
@@ -122,6 +126,7 @@ def get_filtered_fact_table_snow(conn: SnowflakeConnection, min_revenue: float =
     cursor = conn.cursor()
     cursor.execute(query)
     df = cursor.fetch_pandas_all()
+    cursor.close()
 
     logger_data.info(f"[SUCCESS] {len(df)} elements retrieved from the fact table")
 
@@ -131,7 +136,32 @@ def get_filtered_fact_table_snow(conn: SnowflakeConnection, min_revenue: float =
 #    LOCAL BD FUNCTIONS (Used to store and query data from PostgreSQL)
 # -----------------------------------------------------------------------
 
-def save_local_table(conn, schema_name: str, table_name: str, data: pd.DataFrame, truncate_table = True):
+def truncate_local_tables(conn, schema_name: str, table_names: list):
+    
+    cursor = conn.cursor()
+
+    try:
+        for table_name in table_names:
+            cursor.execute(f"TRUNCATE TABLE {schema_name}.{table_name} CASCADE")
+        
+        conn.commit()
+
+    except (psy.DatabaseError) as error: 
+        raise_psql_error(error)
+        conn.rollback()
+        return False
+    except (Exception) as error: 
+        raise_unknown_error(error)
+        conn.rollback()
+        return False
+    
+    finally:
+        cursor.close()
+    
+    return True
+
+
+def save_local_table(conn, schema_name: str, table_name: str, data: pd.DataFrame):
 
     tuples = [tuple(x) for x in data.to_numpy()] 
     cols = ','.join(list(data.columns)) 
@@ -141,9 +171,6 @@ def save_local_table(conn, schema_name: str, table_name: str, data: pd.DataFrame
     cursor = conn.cursor()
     
     try:
-        if truncate_table:
-            cursor.execute(f"TRUNCATE TABLE {schema_name}.{table_name} CASCADE")
-
         extras.execute_values(cursor, query, tuples) 
         conn.commit()
 
@@ -243,19 +270,28 @@ def get_initial_data():
     try:
         snow_conn = create_snow_connection()
 
-        dim_years = get_filtered_dimensions_snow(snow_conn, 'dim_years')
-        dim_genres = get_filtered_dimensions_snow(snow_conn, 'dim_genres')
-        dim_directors = get_filtered_dimensions_snow(snow_conn, 'dim_directors') 
-        dim_actors = get_filtered_dimensions_snow(snow_conn, 'dim_actors')
+        if(validate_select_privileges(snow_conn)):
+            dim_years = get_filtered_dimensions_snow(snow_conn, DIM_YEARS_KEY)
+            dim_genres = get_filtered_dimensions_snow(snow_conn, DIM_GENRES_KEY)
+            dim_directors = get_filtered_dimensions_snow(snow_conn, DIM_DIRECTORS_KEY) 
+            dim_actors = get_filtered_dimensions_snow(snow_conn, DIM_ACTORS_KEY)
 
-        bridge_genres = get_filtered_dimensions_snow(snow_conn, 'bridge_genres')
-        bridge_actors = get_filtered_dimensions_snow(snow_conn, 'bridge_actors')
+            bridge_genres = get_filtered_dimensions_snow(snow_conn, BRIDGE_GENRES_KEY)
+            bridge_actors = get_filtered_dimensions_snow(snow_conn, BRIDGE_ACTORS_KEY)
 
-        max_revenue = get_max_revenue(snow_conn)
-        fact_table = get_filtered_fact_table_snow(snow_conn)
+            max_revenue = get_max_revenue(snow_conn)
+            fact_table = get_filtered_fact_table_snow(snow_conn)
 
-        logger_data.info("[SUCCESS] All data from Snowflake was downloaded.")
-        
+            logger_data.info("[SUCCESS] All data from Snowflake was downloaded.")
+        else:
+            logger_data.info("[ERROR] The logged user does not have permission to query the database.")
+            return None
+
+    except Exception as error:
+        raise_unknown_error(error)
+        close_snow_connection(snow_conn)
+        return False
+    
     finally:
         db_schema = snow_conn.schema
         close_snow_connection(snow_conn)
@@ -295,28 +331,32 @@ def get_initial_data():
     try:
         psql_conn = create_psql_connection()
 
-        save_local_table(psql_conn, db_schema, 'dim_years', dim_years)
-        save_local_table(psql_conn, db_schema, 'dim_genres', dim_genres)
-        save_local_table(psql_conn, db_schema, 'dim_directors', dim_directors)
-        save_local_table(psql_conn, db_schema, 'dim_actors', dim_actors)
+        table_names = [DIM_YEARS_KEY, DIM_GENRES_KEY, DIM_DIRECTORS_KEY, DIM_ACTORS_KEY, BRIDGE_GENRES_KEY, BRIDGE_ACTORS_KEY, FACT_TABLE_KEY]
+        dataframes = [dim_years, dim_genres, dim_directors, dim_actors, bridge_genres, bridge_actors, fact_table]
 
-        save_local_table(psql_conn, db_schema, 'bridge_genres', bridge_genres)
-        save_local_table(psql_conn, db_schema, 'bridge_actors', bridge_actors)
-
-        save_local_table(psql_conn, db_schema, 'fact_table', fact_table)
+        if(truncate_local_tables(psql_conn, db_schema, table_names)):
+            
+            for i in range(len(table_names)):
+                save_local_table(psql_conn, db_schema, table_names[i], dataframes[i])
 
         logger_data.info("[SUCCESS] All data from Snowflake saved into the local database.")
     
     except (psy.DatabaseError, psy.OperationalError, psy.DataError, psy.IntegrityError, psy.InternalError, psy.ProgrammingError) as psql_error:
         raise_psql_error(psql_error)
         psql_conn.rollback()
+        close_psql_connection(psql_conn)
+        return False
 
     except Exception as unknown_error:
         raise_unknown_error(unknown_error)
         psql_conn.rollback()
+        close_psql_connection(psql_conn)
+        return False
 
     finally:
         close_psql_connection(psql_conn)
+
+    return True
 
 
 # -----------------------------------------------------------------------
