@@ -43,4 +43,7 @@ Commands to launch the two containers (web and db) from Docker compose
         cd <proyect_path>
 
     Build and launch
-        docker-compose up --build 
+        docker-compose up --build
+
+Commands used to execute tests:
+    python -m unittest discover
