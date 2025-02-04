@@ -1,0 +1,10 @@
+# -----------------------------------------------------------------------
+#           Dependencies needed to run the app
+# -----------------------------------------------------------------------
+
+psycopg2
+python-dotenv
+snowflake-connector-python[pandas]
+streamlit
+pandas
+plotly

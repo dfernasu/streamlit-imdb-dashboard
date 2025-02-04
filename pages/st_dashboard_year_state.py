@@ -1,5 +1,5 @@
 from utilities_navigation import get_login_state, show_info_toast, move_to_login
-from utilities_snow_data import get_initial_data, get_average_data_per_year, get_pie_count
+from utilities_data import get_initial_data, get_average_data_per_year, get_pie_count
 from utilities_graphs import lines_graph, pie_chart
 from pages.st_sidebar import get_filter_sidebar
 
@@ -16,9 +16,6 @@ show_info_toast()
 # Login Check
 if not get_login_state():
     move_to_login()
-
-# Data initialization
-get_initial_data()
 
 # Sidebar initialization
 get_filter_sidebar()

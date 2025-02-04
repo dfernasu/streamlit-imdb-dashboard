@@ -5,6 +5,10 @@
 #
 # ///////////////////////////////////////////////////////////////////////
 
+# Logger constants
+LOGGER_DB_CONNECTIONS_KEY = 'app.utilities.db.connections'
+LOGGER_DATA_KEY = 'app.utilities.data'
+
 # Streamlit keys
 SIDEBAR_STATE_KEY = 'sidebar_state'
 
@@ -24,6 +28,14 @@ DIM_ACTORS_KEY = 'dim_actors'
 BRIDGE_ACTORS_KEY = 'bridge_actors'
 BRIDGE_GENRES_KEY = 'bridge_genres'
 FACT_TABLE_KEY = 'fact_table'
+
+DIM_YEARS_COLUMNS_KEY = 'dim_years_columns'
+DIM_GENRES_COLUMNS_KEY = 'dim_genres_columns'
+DIM_DIRECTORS_COLUMNS_KEY = 'dim_directors_columns'
+DIM_ACTORS_COLUMNS_KEY = 'dim_actors_columns'
+BRIDGE_ACTORS_COLUMNS_KEY = 'bridge_actors_columns'
+BRIDGE_GENRES_COLUMNS_KEY = 'bridge_genres_columns'
+FACT_TABLE_COLUMNS_KEY = 'fact_table_columns'
 
 COMPLETE_YEAR_LIST_KEY = 'complete_year_list'
 COMPLETE_YEAR_IDS_LIST_KEY = 'complete_year_ids_list'
