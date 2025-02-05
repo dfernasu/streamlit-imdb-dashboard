@@ -4,10 +4,26 @@ on:
   push:
     branches: [ "develop" ]
 
-jobs:
-
+jobs:   
   build_and_test:
     runs-on: ubuntu-latest
+    env:
+      SNOW_ACCOUNT: ${{ secrets.SNOW_ACCOUNT }}
+      SNOW_AUTOCOMMIT: ${{ vars.SNOW_AUTOCOMMIT }}
+      SNOW_DATABASE: ${{ vars.SNOW_DATABASE }}
+      SNOW_SCHEMA: ${{ vars.SNOW_SCHEMA }}
+      SNOW_WAREHOUSE: ${{ vars.SNOW_WAREHOUSE }}
+      
+      POSTGRES_HOST: ${{ vars.POSTGRES_HOST }}
+      POSTGRES_PORT: ${{ vars.POSTGRES_PORT }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_DATABASE: ${{ vars.POSTGRES_DATABASE }}
+      POSTGRES_SCHEMA: ${{ vars.POSTGRES_SCHEMA }}
+      
+      SNOW_USER_TESTING: ${{ secrets.SNOW_USER_TESTING }}
+      SNOW_PASSWORD_TESTING: ${{ secrets.SNOW_PASSWORD_TESTING }}
+      
     steps:
           - name: Clone Develop Branch
             uses: actions/checkout@v4
