@@ -15,7 +15,7 @@ jobs:
                 ref: 'develop'
 
           - name: Build and Start Containers
-            uses: hoverkraft-tech/compose-action@v0.0.0
+            uses: hoverkraft-tech/compose-action@v2.2.0
             with:
                 compose-file: "./docker-compose.yml"
                 up-flags: "--build"
