@@ -45,5 +45,8 @@ Commands to launch the two containers (web and db) from Docker compose
     Build and launch
         docker-compose up --build
 
+    Stop docker
+        docker-compose down
+
 Commands used to execute tests:
     python -m unittest discover

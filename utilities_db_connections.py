@@ -51,8 +51,8 @@ def get_snow_config():
     try:
         config["autocommit"] = bool(os.getenv("SNOW_AUTOCOMMIT"))
         config["account"] = str(os.getenv("SNOW_ACCOUNT"))
-        config["user"] = str(os.getenv("SNOW_USER"))
-        config["password"] = str(os.getenv("SNOW_PASSWORD"))
+        config["user"] = None
+        config["password"] = None
         config["database"] = str(os.getenv("SNOW_DATABASE"))
         config["schema"] = str(os.getenv("SNOW_SCHEMA"))
         config["warehouse"] = str(os.getenv("SNOW_WAREHOUSE"))
