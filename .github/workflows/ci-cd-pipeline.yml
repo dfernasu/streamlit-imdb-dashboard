@@ -1,0 +1,35 @@
+name: CI/CD Pipeline for Docker Compose
+
+on:
+  push:
+    branches: [ "develop" ]
+
+jobs:
+
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+          - name: Clone Develop Branch
+            uses: actions/checkout@v4
+            with:
+                ref: 'develop'
+
+          - name: Set up Docker Buildx
+            uses: docker/setup-buildx-action@v3
+
+          - name: Build and Start Containers
+            run: docker-compose up --build
+
+          - name: Wait for PostgresDB and Streamlit services to be healthy
+            run: |
+                # Wait for posgres service:
+                while ! docker-compose exec db pg_isready -d $POSTGRES_DB; do sleep 1; done 
+
+                # Wait for the streamlit app to respond (error if the HTTP code returned is 400 or above)
+                while ! curl -f http://localhost:8501/; do sleep 1; done
+
+          - name: Run Python Tests
+            run: docker-compose exec web python -m unittest discover
+
+          - name: Stops Containers
+            run: docker-compose down
