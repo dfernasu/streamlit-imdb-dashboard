@@ -39,7 +39,7 @@ jobs:
           - name: Wait for PostgresDB and Streamlit services to be healthy
             run: |
                 # Wait for posgres service:
-                while ! docker-compose exec db pg_isready -d $POSTGRES_DATABASE; do sleep 1; done 
+                while ! docker compose exec db pg_isready -d $POSTGRES_DATABASE; do sleep 1; done 
 
                 # Wait for the streamlit app to respond (error if the HTTP code returned is 400 or above)
                 while ! curl -f http://localhost:8501/; do sleep 1; done
