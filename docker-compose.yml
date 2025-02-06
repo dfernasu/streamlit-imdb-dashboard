@@ -11,7 +11,6 @@ services:
       PGDATA: /data/postgres
     volumes:
       - db:/data/postgres
-      - ./scripts/schema_creation_psql.sql:/docker-entrypoint-initdb.d/schema_creation_psql.sql
     ports:
       - "5432:5432"
     healthcheck:
