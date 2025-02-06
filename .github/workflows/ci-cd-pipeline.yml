@@ -30,11 +30,14 @@ jobs:
             with:
                 ref: 'develop'
 
+          - name: Install Docker Compose
+            run: |
+                curl -SL https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+                sudo chmod +x /usr/local/bin/docker-compose
+                echo docker-compose --version
+
           - name: Build and Start Containers
-            uses: hoverkraft-tech/compose-action@v2.2.0
-            with:
-                compose-file: "./docker-compose.yml"
-                up-flags: "--build"
+            run: docker-compose up --build
 
           - name: Wait for PostgresDB and Streamlit services to be healthy
             run: |
@@ -46,3 +49,6 @@ jobs:
 
           - name: Run Python Tests
             run: docker-compose exec web python -m unittest discover
+
+          - name: Stop Containers
+            run: docker-compose down
