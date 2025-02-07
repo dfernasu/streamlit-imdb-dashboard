@@ -16,7 +16,7 @@ jobs:
       
       POSTGRES_HOST: ${{ vars.POSTGRES_HOST }}
       POSTGRES_PORT: ${{ vars.POSTGRES_PORT }}
-      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_USER: ${{ vars.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       POSTGRES_DATABASE: ${{ vars.POSTGRES_DATABASE }}
       POSTGRES_SCHEMA: ${{ vars.POSTGRES_SCHEMA }}
@@ -24,6 +24,7 @@ jobs:
       SNOW_USER_TESTING: ${{ secrets.SNOW_USER_TESTING }}
       SNOW_PASSWORD_TESTING: ${{ secrets.SNOW_PASSWORD_TESTING }}
 
+      IMAGE_NAME_DB: ${{ vars.IMAGE_NAME_DB }}
       IMAGE_NAME_WEB: ${{ vars.IMAGE_NAME_WEB }}
       
     steps:
@@ -63,7 +64,7 @@ jobs:
           - name: Publish Docker Images to GCR
             if: ${{ success() }}
             run: |
-                docker push ghcr.io/${{github.repository_owner}}/postgres:latest
+                docker push ghcr.io/${{github.repository_owner}}/$IMAGE_NAME_DB
                 docker push ghcr.io/${{github.repository_owner}}/$IMAGE_NAME_WEB
 
           - name: Stop and Remove all Containers, Networks and Volumes
