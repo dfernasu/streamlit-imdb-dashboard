@@ -65,8 +65,8 @@ jobs:
             if: ${{ success() }}
             run: |
                 docker images
-                docker push ghcr.io/${{github.repository_owner}}/$IMAGE_NAME_DB:latest
                 docker push ghcr.io/${{github.repository_owner}}/$IMAGE_NAME_WEB:latest
+                docker push ghcr.io/${{github.repository_owner}}/$IMAGE_NAME_DB:latest
 
           - name: Stop and Remove all Containers, Networks and Volumes
             if: ${{ always() }}
