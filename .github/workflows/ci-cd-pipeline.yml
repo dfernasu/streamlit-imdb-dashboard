@@ -23,6 +23,9 @@ jobs:
       
       SNOW_USER_TESTING: ${{ secrets.SNOW_USER_TESTING }}
       SNOW_PASSWORD_TESTING: ${{ secrets.SNOW_PASSWORD_TESTING }}
+
+      IMAGE_NAME_DB: ${{ vars.IMAGE_NAME_DB }}
+      IMAGE_NAME_WEB: ${{ vars.IMAGE_NAME_WEB }}
       
     steps:
           - name: Clone Develop Branch
@@ -58,9 +61,11 @@ jobs:
                 username: ${{github.actor}}
                 password: ${{secrets.GITHUB_TOKEN}}
 
-          - name: Publish Docker Container to GCR
+          - name: Publish Docker Images to GCR
             if: ${{ success() }}
-            run: docker push ghcr.io/${{ github.repository }}
+            run: |
+                docker push ghcr.io/${{github.repository_owner}}/$IMAGE_NAME_DB
+                docker push ghcr.io/${{github.repository_owner}}/$IMAGE_NAME_WEB
 
           - name: Stop and Remove all Containers, Networks and Volumes
             if: ${{ always() }}
