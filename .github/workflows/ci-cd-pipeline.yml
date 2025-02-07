@@ -4,6 +4,10 @@ on:
   push:
     branches: [ "develop" ]
 
+permissions:
+  packages: write
+  contents: read
+
 jobs:   
   build_test_push_images:
     runs-on: ubuntu-latest
