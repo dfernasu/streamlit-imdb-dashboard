@@ -6,24 +6,28 @@
 #
 # ///////////////////////////////////////////////////////////////////////
 
-from utilities_db_connections import *
+import os
+import snowflake.connector
+from dotenv import load_dotenv
 from snowflake.connector.errors import Error
 from snowflake.connector import SnowflakeConnection
 from snowflake.connector.pandas_tools import write_pandas
 import pandas as pd
 import logging as log
 
+load_dotenv()
+
 # -----------------------------------------------------------------------
 #                          GLOBAL PARAMETERS
 # -----------------------------------------------------------------------
 
-PROYECT_FOLDER = "C:/Users/dfernasu/OneDrive - NTT DATA EMEAL/Documentos/TareasSnowflake/ProyectoSnowStreamlit"
+PROYECT_FOLDER = os.getenv("PROYECT_FOLDER")
 DATASETS_FOLDER = f"{PROYECT_FOLDER}/datasets/"
 SQL_SCRIPT_PATH = f"{PROYECT_FOLDER}/scripts/schema_creation_snow.sql"
 
-DATABASE = 'PRACTICE_DATASETS'
-SCHEMA = 'IMDB_DWH'
-WAREHOUSE = 'COMPUTE_WH'
+DATABASE = os.getenv("SNOW_DATABASE")
+SCHEMA = os.getenv("SNOW_SCHEMA")
+WAREHOUSE = os.getenv("SNOW_WAREHOUSE")
 
 conn = None
 cursor = None
@@ -31,7 +35,71 @@ cursor = None
 datasets_names = ['dim_genres', 'dim_actors', 'dim_directors', 'dim_years', 'bridge_genres', 'bridge_actors', 'fact_table']
 
 # -----------------------------------------------------------------------
-#                              FUNCTIONS
+#                        CONNECTION FUNCTIONS
+# -----------------------------------------------------------------------
+
+def raise_unknown_error(unknown_error: Exception):
+    print(f"[ERROR] An unknown error has occurred:\n\t- Msg: {unknown_error}")
+    raise unknown_error
+
+def raise_snowflake_error(snowflake_error: Exception):
+    print(f"[ERROR] An error has occurred in snowflake:\n\t- Msg: {snowflake_error.msg}\n\t- Query with id {snowflake_error.sfqid} executed: {snowflake_error.query}\n\t- Error Code: {snowflake_error.errno}")
+    raise snowflake_error
+
+def get_snow_config():
+    config = {}
+
+    try:
+        config["autocommit"] = bool(os.getenv("SNOW_AUTOCOMMIT"))
+        config["account"] = str(os.getenv("SNOW_ACCOUNT"))
+        config["user"] = str(os.getenv("SNOW_USER"))
+        config["password"] = str(os.getenv("SNOW_PASSWORD"))
+        config["database"] = str(os.getenv("SNOW_DATABASE"))
+        config["schema"] = str(os.getenv("SNOW_SCHEMA"))
+        config["warehouse"] = str(os.getenv("SNOW_WAREHOUSE"))
+
+    except KeyError as error:
+        print(f"[ERROR] An getenvment Variable was not configured:\n\t- Msg: {error}")
+        return None
+    
+    return config
+
+def create_snow_connection():
+    try:
+        print("\n----------- Creating a connection to the Snowflake Account -----------")
+
+        config = get_snow_config()
+        conn = snowflake.connector.connect(**config)
+
+        cursor = conn.cursor()
+        cursor.execute(f'USE DATABASE {conn.database};')
+        cursor.execute(f'USE WAREHOUSE {conn.warehouse};')
+        cursor.execute(f'USE SCHEMA {conn.database}.{conn.schema};')
+        cursor.close()
+        
+    except snowflake.connector.errors as snowflake_error:
+        close_snow_connection(conn)
+        raise_snowflake_error(snowflake_error)
+
+    except Exception as unknown_error:
+        close_snow_connection(conn)
+        raise_unknown_error(unknown_error)
+
+    else:
+        print(f"[SUCCESS] Connected to the account: {conn.account} with user {conn.user}, using the database {conn.database} and the warehouse {conn.warehouse}")
+        return conn
+    
+    
+def close_snow_connection(conn):
+    if(conn is not None):
+        print("\n----------- Closing the connection with the Snowflake Account -----------")
+        conn.close()
+        print("[SUCCESS] Connection to Snowflake closed successfully.")
+    else:
+        print("[ERROR] Not a valid connection to close.")
+
+# -----------------------------------------------------------------------
+#                           DATA FUNCTIONS
 # -----------------------------------------------------------------------
 
 def schema_creation():
@@ -50,7 +118,7 @@ def schema_creation():
 def load_dataset(name: str):
     complete_path = DATASETS_FOLDER + name + '.csv'
     dataset = pd.read_csv(complete_path,sep=',', header=0)
-    log.info(f"\t - Loaded: {complete_path}")
+    print(f"\t - Loaded: {complete_path}")
 
     return dataset
 
@@ -64,7 +132,7 @@ def load_table_from_dataset(conn: SnowflakeConnection, table_name: str, dataset:
 
     assert(num_rows_inserted == len(dataset))
     
-    log.info(f"\t - The table: {table_name} was loaded with {num_rows_inserted} rows.")
+    print(f"\t - The table: {table_name} was loaded with {num_rows_inserted} rows.")
 
 
 # -----------------------------------------------------------------------
@@ -72,7 +140,7 @@ def load_table_from_dataset(conn: SnowflakeConnection, table_name: str, dataset:
 # -----------------------------------------------------------------------
 
 try:
-    conn = create_snow_connection(DATABASE, WAREHOUSE)
+    conn = create_snow_connection()
     
     if(conn is not None):
         
