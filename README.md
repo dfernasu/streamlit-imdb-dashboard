@@ -15,6 +15,7 @@ The application runs thanks to 2 Docker containers: one for the Streamlit web an
   - [Data transformation and upload to Snowflake](#data-transformation-and-upload-to-snowflake)
   - [User and Restrictions Creation in Snowflake](#user-and-restrictions-creation-in-snowflake)
   - [Setting the Local PostgreSQL](#setting-the-local-postgresql)
+  - [Environmental Variables](#environmental-variables)
 - [Streamlit App](#streamlit-app)
   - [App Files](#app-files)
   - [Launching the App](#launching-the-app)
@@ -100,6 +101,16 @@ ALTER DATABASE practice_datasets SET client_encoding TO 'UTF8'; \
 
 **NOTE**: To use the psql command in Windows, it is necessary to add the next path to the Environmental Variable PATH, and executing it as Admin:
 > <Installation folder>\PostgreSQL\<version>\bin\
+
+## Environmental Variables
+
+Both the Streamlit App and the Docker Configuration use environmental variables to access critical data, such as the credentials of the local database and Snowflake. The easiest way to configure these variables is by using a .env file (not included in the GitHub repository), which is also needed in Python to load them.
+
+A template of what needs to be included in this file, can be found in:
+
+> scripts/dotenv_template.txt
+
+These variables were also configured for the [GitHub Actions pipeline](#cicd-with-github-actions), using GitHub Secrets and GitHub Variables.
 
 # Streamlit App
 

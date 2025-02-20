@@ -1,0 +1,20 @@
+PROYECT_FOLDER=folder_name
+
+SNOW_ACCOUNT=account_identifier (separated with a '-' instead of '.')
+SNOW_AUTOCOMMIT=True/False
+SNOW_DATABASE=db_name
+SNOW_SCHEMA=schema_name
+SNOW_WAREHOUSE=warehouse_name
+
+SNOW_USER=user
+SNOW_PASSWORD=password
+
+POSTGRES_HOST=localhost/host_name/ip
+POSTGRES_PORT=port
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+POSTGRES_DATABASE=db_name
+POSTGRES_SCHEMA=schema_name
+
+SNOW_USER_TESTING=user
+SNOW_PASSWORD_TESTING=password
