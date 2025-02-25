@@ -24,6 +24,7 @@ The application runs thanks to 2 Docker containers: one for the Streamlit web an
     - [Configuration 3: App and DB running on Docker containers](#configuration-3-app-and-db-running-on-docker-containers)
   - [Testing the App](#testing-the-app)
 - [CI/CD with GitHub Actions](#cicd-with-github-actions)
+  - [Example: deploy using the GitHub API](#example-deploy-using-the-github-api)
 
 # Project Setup
 
@@ -234,5 +235,23 @@ The next diagram shows the steps made in the pipeline:
 
 ![CI/CD Pipeline](./images/ci_cd_pipeline.jpg)
 
+## Example: deploy using the GitHub API
 
+A new bash script has been added to the scripts folder. This script queries the GitHub API to check the status of the most recent run of the GitHub Actions pipeline in the repository. If the last run was successful, it initiates the subsequent steps:
+1. Pull the develop branch
+2. Build and run the docker-compose
+
+The bash script can be found in:
+
+> scripts/check_success_github.sh
+
+This script can be used to create a scheduled task on a Linux machine that runs every 30 minutes, ensuring the app inside the container always has the latest updates in the development environment. To achieve this, you can use a crontab file, which can be opened with the following command:
+
+> crontab -e
+
+The following line is an example of how to configure a task to run every 30 minutes. This task executes the script and logs its output (including echo statements and errors) to a logfile:
+
+> */30 * * * * /<script_path>/check_success_github.sh >> /<log_path>/check_success_github.log 2>&1
+
+The advantage of this method over a traditional deployment is that the machine only needs to have Git and Docker installed to run the app. This setup allows for other deployments without requiring changes to the machine's configuration.
 
