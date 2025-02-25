@@ -12,8 +12,8 @@ The application runs thanks to 2 Docker containers: one for the Streamlit web an
 - [Table of Contents](#table-of-contents)
 - [Project Setup](#project-setup)
   - [Data origin](#data-origin)
+  - [Snowflake Configuration](#snowflake-configuration)
   - [Data transformation and upload to Snowflake](#data-transformation-and-upload-to-snowflake)
-  - [User and Restrictions Creation in Snowflake](#user-and-restrictions-creation-in-snowflake)
   - [Setting the Local PostgreSQL](#setting-the-local-postgresql)
   - [Environmental Variables](#environmental-variables)
 - [Streamlit App](#streamlit-app)
@@ -37,13 +37,26 @@ The data stored in Snowflake comes from a Kaggle dataset in .csv format, which c
 
 > ./datasets/imdb_dataset.csv
 
+## Snowflake Configuration
+
+To configure the Snowflake Account with all the necessary components and restrictions for the project, a sql script was included in the Scripts folder:
+
+> ./scripts/snow_configuration.sql
+
+This script is intended to be executed section by section, rather than all at once, and requires Enterprise Edition or higher to run all the queries.
+If this is not possible, the Access Policy cannot be executed, but it is not necessary for the app's execution.
+
+The implemented configurations include:
+* Database, Schema and Warehouse creation
+* Creation of the role USERIMDB and the users IMDB_USER_1 and IMDB_USER_2, along with their permissions
+* Creation of the role TEST_USERIMDB and the user TEST_USER for testing the connections of the app
+* Creation of a Resource Monitor and Access Policy
+
 ## Data transformation and upload to Snowflake
 
 To create the star model, the data has been transformed using a python script, which can be found at:
 
 > ./scripts/data_transformation.py
-
-> **IMPORTANT**: Before uploading the data to Snowflake, the database “PRACTICE_DATASETS” and the schema “IMDB_DWH” must be created. Preferably using the Snow SYSADMIN user.
 
 To upload the data to snowflake, another python script has been used, which makes use of the official Snowflake connector for this language: [Snowflake Connector for Python](https://docs.snowflake.com/en/developer-guide/python-connector/python-connector)
 
@@ -53,17 +66,8 @@ In turn, this script uses another SQL script to generate the schema:
 
 > ./scripts/schema_creation.sql
 
-## User and Restrictions Creation in Snowflake
-
-Another sql file is used to define some restrictions in Snowflake:
-* The role USERIMDB and the users IMDB_USER_1 and IMDB_USER_2, who only have usage privileges on PRACTICE_DATASETS
-* The warehouse IMDB_WH, wich can be used by USERIMDB and SYSADMIN
-* A resource monitor, to control the usage of the previous warehouse (optional)
-* An access policy to reduce the years that USERIMDB can see (optional)
-* The role TEST_USERIMDB and user TEST_USER, used in the testing section of the project
-
-This sql is found in:
-> ./scripts/imdb_user_privileges.sql
+> **IMPORTANT**: Before uploading the data to Snowflake, the database “PRACTICE_DATASETS” and the schema “IMDB_DWH” must be created, wich can be archieved
+> using the script in the [Snowflake Configuration section](#snowflake-configuration).
 
 ## Setting the Local PostgreSQL
 
