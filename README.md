@@ -12,17 +12,20 @@ The application runs thanks to 2 Docker containers: one for the Streamlit web an
 - [Table of Contents](#table-of-contents)
 - [Project Setup](#project-setup)
   - [Data origin](#data-origin)
+  - [Snowflake Configuration](#snowflake-configuration)
   - [Data transformation and upload to Snowflake](#data-transformation-and-upload-to-snowflake)
-  - [User and Restrictions Creation in Snowflake](#user-and-restrictions-creation-in-snowflake)
   - [Setting the Local PostgreSQL](#setting-the-local-postgresql)
+  - [Environmental Variables](#environmental-variables)
 - [Streamlit App](#streamlit-app)
   - [App Files](#app-files)
   - [Launching the App](#launching-the-app)
     - [Configuration 1: Local Installation of the App and DB](#configuration-1-local-installation-of-the-app-and-db)
     - [Configuration 2: Streamlit on Docker and DB in the localhost](#configuration-2-streamlit-on-docker-and-db-in-the-localhost)
     - [Configuration 3: App and DB running on Docker containers](#configuration-3-app-and-db-running-on-docker-containers)
+    - [pgAdmin Service Configuration](#pgadmin-service-configuration)
   - [Testing the App](#testing-the-app)
 - [CI/CD with GitHub Actions](#cicd-with-github-actions)
+  - [Example: deploy using the GitHub API](#example-deploy-using-the-github-api)
 
 # Project Setup
 
@@ -36,13 +39,26 @@ The data stored in Snowflake comes from a Kaggle dataset in .csv format, which c
 
 > ./datasets/imdb_dataset.csv
 
+## Snowflake Configuration
+
+To configure the Snowflake Account with all the necessary components and restrictions for the project, a sql script was included in the Scripts folder:
+
+> ./scripts/snow_configuration.sql
+
+This script is intended to be executed section by section, rather than all at once, and requires Enterprise Edition or higher to run all the queries.
+If this is not possible, the Access Policy cannot be executed, but it is not necessary for the app's execution.
+
+The implemented configurations include:
+* Database, Schema and Warehouse creation
+* Creation of the role USERIMDB and the users IMDB_USER_1 and IMDB_USER_2, along with their permissions
+* Creation of the role TEST_USERIMDB and the user TEST_USER for testing the connections of the app
+* Creation of a Resource Monitor and Access Policy
+
 ## Data transformation and upload to Snowflake
 
 To create the star model, the data has been transformed using a python script, which can be found at:
 
 > ./scripts/data_transformation.py
-
-> **IMPORTANT**: Before uploading the data to Snowflake, the database “PRACTICE_DATASETS” and the schema “IMDB_DWH” must be created. Preferably using the Snow SYSADMIN user.
 
 To upload the data to snowflake, another python script has been used, which makes use of the official Snowflake connector for this language: [Snowflake Connector for Python](https://docs.snowflake.com/en/developer-guide/python-connector/python-connector)
 
@@ -52,17 +68,8 @@ In turn, this script uses another SQL script to generate the schema:
 
 > ./scripts/schema_creation.sql
 
-## User and Restrictions Creation in Snowflake
-
-Another sql file is used to define some restrictions in Snowflake:
-* The role USERIMDB and the users IMDB_USER_1 and IMDB_USER_2, who only have usage privileges on PRACTICE_DATASETS
-* The warehouse IMDB_WH, wich can be used by USERIMDB and SYSADMIN
-* A resource monitor, to control the usage of the previous warehouse (optional)
-* An access policy to reduce the years that USERIMDB can see (optional)
-* The role TEST_USERIMDB and user TEST_USER, used in the testing section of the project
-
-This sql is found in:
-> ./scripts/imdb_user_privileges.sql
+> **IMPORTANT**: Before uploading the data to Snowflake, the database “PRACTICE_DATASETS” and the schema “IMDB_DWH” must be created, wich can be archieved
+> using the script in the [Snowflake Configuration section](#snowflake-configuration).
 
 ## Setting the Local PostgreSQL
 
@@ -100,6 +107,16 @@ ALTER DATABASE practice_datasets SET client_encoding TO 'UTF8'; \
 
 **NOTE**: To use the psql command in Windows, it is necessary to add the next path to the Environmental Variable PATH, and executing it as Admin:
 > <Installation folder>\PostgreSQL\<version>\bin\
+
+## Environmental Variables
+
+Both the Streamlit App and the Docker Configuration use environmental variables to access critical data, such as the credentials of the local database and Snowflake. The easiest way to configure these variables is by using a .env file (not included in the GitHub repository), which is also needed in Python to load them.
+
+A template of what needs to be included in this file, can be found in:
+
+> scripts/dotenv_template.txt
+
+These variables were also configured for the [GitHub Actions pipeline](#cicd-with-github-actions), using GitHub Secrets and GitHub Variables.
 
 # Streamlit App
 
@@ -200,6 +217,20 @@ The app can be launched with the next commands:
 > **IMPORTANT**: Admin privileges needed (best option is execute them from the Docker Desktop console): \
 cd <proyect_path>
 
+### pgAdmin Service Configuration
+
+A new service, called db-ui, was added to the docker-compose.yml to have a pgAdmin interface for the db service. This new service uses an aditional volume and the connection to the db has to be setted manually with the following steps:
+1. Enter the pgAdmin Web Interface in (http://localhost:80/)
+2. Select the option *"Add New Server"*
+3. Configure the connection with these parameters
+   * Name: IMDB
+   * Shared: True
+   * HostName: db
+   * Port: 5432
+   * Maintenance Database: postgres
+   * Username and Password: same as the PostgreSQL configuration
+   * Save passwor: True (Optional)
+
 ## Testing the App
 
 Another python script is included in order to test the connections to both Snowflake and PostgreSQL.
@@ -219,5 +250,23 @@ The next diagram shows the steps made in the pipeline:
 
 ![CI/CD Pipeline](./images/ci_cd_pipeline.jpg)
 
+## Example: deploy using the GitHub API
 
+A new bash script has been added to the scripts folder. This script queries the GitHub API to check the status of the most recent run of the GitHub Actions pipeline in the repository. If the last run was successful, it initiates the subsequent steps:
+1. Pull the develop branch
+2. Build and run the docker-compose
+
+The bash script can be found in:
+
+> scripts/check_success_github.sh
+
+This script can be used to create a scheduled task on a Linux machine that runs every 30 minutes, ensuring the app inside the container always has the latest updates in the development environment. To achieve this, you can use a crontab file, which can be opened with the following command:
+
+> crontab -e
+
+The following line is an example of how to configure a task to run every 30 minutes. This task executes the script and logs its output (including echo statements and errors) to a logfile:
+
+> */30 * * * * /<script_path>/check_success_github.sh >> /<log_path>/check_success_github.log 2>&1
+
+The advantage of this method over a traditional deployment is that the machine only needs to have Git and Docker installed to run the app. This setup allows for other deployments without requiring changes to the machine's configuration.
 

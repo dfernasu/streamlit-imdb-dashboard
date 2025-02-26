@@ -22,6 +22,23 @@ services:
     networks:
       - db
 
+  db-ui:
+    image: 'dpage/pgadmin4:latest'
+    container_name: pgAdmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${POSTGRES_USER}@domain.com"
+      PGADMIN_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - db
+    volumes:
+      - db-ui:/var/lib/pgadmin
+
   web:
     container_name: streamlit_app
     build:
@@ -55,3 +72,4 @@ networks:
 
 volumes:
   db:
+  db-ui:
