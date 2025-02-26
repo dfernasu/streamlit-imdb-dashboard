@@ -22,6 +22,7 @@ The application runs thanks to 2 Docker containers: one for the Streamlit web an
     - [Configuration 1: Local Installation of the App and DB](#configuration-1-local-installation-of-the-app-and-db)
     - [Configuration 2: Streamlit on Docker and DB in the localhost](#configuration-2-streamlit-on-docker-and-db-in-the-localhost)
     - [Configuration 3: App and DB running on Docker containers](#configuration-3-app-and-db-running-on-docker-containers)
+    - [pgAdmin Service Configuration](#pgadmin-service-configuration)
   - [Testing the App](#testing-the-app)
 - [CI/CD with GitHub Actions](#cicd-with-github-actions)
   - [Example: deploy using the GitHub API](#example-deploy-using-the-github-api)
@@ -215,6 +216,20 @@ The app can be launched with the next commands:
 ---
 > **IMPORTANT**: Admin privileges needed (best option is execute them from the Docker Desktop console): \
 cd <proyect_path>
+
+### pgAdmin Service Configuration
+
+A new service, called db-ui, was added to the docker-compose.yml to have a pgAdmin interface for the db service. This new service uses an aditional volume and the connection to the db has to be setted manually with the following steps:
+1. Enter the pgAdmin Web Interface in (http://localhost:80/)
+2. Select the option *"Add New Server"*
+3. Configure the connection with these parameters
+   * Name: IMDB
+   * Shared: True
+   * HostName: db
+   * Port: 5432
+   * Maintenance Database: postgres
+   * Username and Password: same as the PostgreSQL configuration
+   * Save passwor: True (Optional)
 
 ## Testing the App
 
